@@ -26,17 +26,20 @@ public class TransactionService {
     @Autowired
     private RestTemplate restTemplate;
 
-    public void createTransaction(TransactionDTO transaction) throws Exception {
+    @Autowired
+    private NotificationService notificationService;
+
+    public Transaction createTransaction(TransactionDTO transaction) throws Exception {
         User sender = this.userService.findUserById(transaction.senderId());
         User receiver = this.userService.findUserById(transaction.receiverId());
 
         userService.validateTransaction(sender, transaction.value());
 
 
-        boolean isAuthorized = this.authorizeTransaction(sender,transaction.value());
+        /*boolean isAuthorized = this.authorizeTransaction(sender,transaction.value());
         if(!isAuthorized){
             throw new Exception("Transação não autorizada.");
-        }
+        }*/
 
         Transaction newTransaction = new Transaction();
         newTransaction.setAmount(transaction.value());
@@ -50,10 +53,13 @@ public class TransactionService {
         this.transactionRepository.save(newTransaction);
         this.userService.saveUser(sender);
         this.userService.saveUser(receiver);
+        this.notificationService.sendNotification(sender,"Transação Realizada com Sucesso.");
+        this.notificationService.sendNotification(receiver,"Transação Recebida com Sucesso.");
+        return newTransaction;
     }
 
     public boolean authorizeTransaction(User sender, BigDecimal value){
-        var authorizationResponse =restTemplate.getForEntity("https://run.mocky.io/v3/8fafdd68-a090-496f-8c9a-3442cf30dae6", Map.class);
+        ResponseEntity<Map> authorizationResponse =restTemplate.getForEntity("https://run.mocky.io/v3/8fafdd68-a090-496f-8c9a-3442cf30dae6", Map.class);
 
         if(authorizationResponse.getStatusCode()== HttpStatus.OK ){
             String message =(String) Objects.requireNonNull(authorizationResponse.getBody()).get("message");
